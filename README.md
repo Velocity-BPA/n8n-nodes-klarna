@@ -8,25 +8,25 @@
 >
 > For licensing information, visit https://velobpa.com/licensing or contact licensing@velobpa.com.
 
-This n8n community node provides comprehensive integration with Klarna's payment platform, offering 5 core resources for managing payment sessions, orders, captures, refunds, and settlements. Build automated workflows for e-commerce payment processing, order management, and financial reconciliation with Klarna's powerful payment APIs.
+This n8n community node integrates with Klarna's payment platform, providing access to 5 core resources for managing payment sessions, orders, captures, refunds, and settlements. Automate your Klarna payment workflows with comprehensive support for the complete payment lifecycle from session creation to settlement reconciliation.
 
 ![n8n Community Node](https://img.shields.io/badge/n8n-Community%20Node-blue)
 ![License](https://img.shields.io/badge/license-BSL--1.1-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
-![Klarna API](https://img.shields.io/badge/Klarna-API%20v1-ff6900)
-![Payments](https://img.shields.io/badge/Payments-Ready-success)
-![E-commerce](https://img.shields.io/badge/E--commerce-Integration-orange)
+![Klarna API](https://img.shields.io/badge/Klarna-API-FF69B4)
+![Payments](https://img.shields.io/badge/Payments-Integration-green)
+![E-commerce](https://img.shields.io/badge/E--commerce-Ready-orange)
 
 ## Features
 
-- **Payment Session Management** - Create and manage Klarna payment sessions for checkout flows
-- **Order Processing** - Handle order creation, updates, and lifecycle management
-- **Payment Capture** - Process partial and full payment captures for authorized orders
-- **Refund Operations** - Execute full and partial refunds with detailed tracking
-- **Settlement Tracking** - Monitor and retrieve settlement reports and transaction details
-- **Real-time Webhooks** - Handle Klarna webhook events for automated workflow triggers
-- **Multi-region Support** - Compatible with Klarna's global payment infrastructure
-- **Comprehensive Error Handling** - Robust error management with detailed response codes
+- **Payment Session Management** - Create, update, and manage Klarna payment sessions for checkout flows
+- **Order Processing** - Handle order creation, authorization, and lifecycle management
+- **Capture Operations** - Process full and partial captures for authorized orders
+- **Refund Handling** - Execute refunds with support for partial amounts and reason codes
+- **Settlement Tracking** - Monitor and reconcile settlement reports and transaction data
+- **Comprehensive Error Handling** - Built-in retry logic and detailed error messages
+- **Flexible Authentication** - Secure API key-based authentication with environment support
+- **Production Ready** - Full type safety and validation for reliable payment processing
 
 ## Installation
 
@@ -61,65 +61,55 @@ n8n start
 
 | Field | Description | Required |
 |-------|-------------|----------|
-| API Username | Your Klarna API username (merchant ID) | ✅ |
-| API Password | Your Klarna API password/token | ✅ |
-| Environment | Select Playground (testing) or Production | ✅ |
-| Region | API region (Europe, North America, Oceania) | ✅ |
+| API Key | Your Klarna API key from the merchant portal | Yes |
+| Environment | Production or Sandbox environment | Yes |
+| Region | API region (EU, NA, OC) | Yes |
 
 ## Resources & Operations
 
-### 1. Payment Sessions
+### 1. Payment Session
 
 | Operation | Description |
 |-----------|-------------|
 | Create | Create a new payment session for checkout |
-| Read | Retrieve payment session details |
-| Update | Update existing payment session |
-| Delete | Cancel/delete a payment session |
+| Get | Retrieve payment session details |
+| Update | Update payment session information |
+| Delete | Cancel and remove a payment session |
 
-### 2. Orders
+### 2. Order
 
 | Operation | Description |
 |-----------|-------------|
 | Create | Create a new order from payment session |
-| Read | Retrieve order details and status |
-| Update Customer Details | Update customer information for order |
-| Update Merchant References | Update merchant reference data |
-| Acknowledge | Acknowledge order receipt |
+| Get | Retrieve order details and status |
+| Update | Modify order information |
 | Cancel | Cancel an existing order |
 | Extend Authorization | Extend order authorization period |
-| Update Authorization | Update authorization amount |
-| Get All | List all orders with filters |
 
-### 3. Captures
+### 3. Capture
 
 | Operation | Description |
 |-----------|-------------|
-| Create | Capture payment for an order (full or partial) |
-| Read | Retrieve capture details |
-| Update Billing Address | Update billing address for capture |
-| Update Customer Details | Update customer information for capture |
-| Add Shipping Info | Add shipping information to capture |
-| Resend Confirmation | Resend capture confirmation to customer |
+| Create | Capture funds for an authorized order |
+| Get | Retrieve capture details |
 | Get All | List all captures for an order |
+| Update | Update capture information |
 
-### 4. Refunds
+### 4. Refund
 
 | Operation | Description |
 |-----------|-------------|
-| Create | Create a refund for captured amount |
-| Read | Retrieve refund details and status |
+| Create | Issue a refund for captured funds |
+| Get | Retrieve refund details |
 | Get All | List all refunds for an order |
 
-### 5. Settlements
+### 5. Settlement
 
 | Operation | Description |
 |-----------|-------------|
-| Get All | Retrieve settlement reports |
-| Get Transactions | Get settlement transaction details |
-| Get Summary | Get settlement summary by date range |
-| Get CSV Report | Download settlement data as CSV |
-| Get PDF Report | Download settlement report as PDF |
+| Get Report | Retrieve settlement report |
+| Get Transactions | List settlement transactions |
+| Get Payouts | Retrieve payout information |
 
 ## Usage Examples
 
@@ -129,67 +119,30 @@ n8n start
   "purchase_country": "US",
   "purchase_currency": "USD",
   "locale": "en-US",
-  "order_amount": 5000,
-  "order_tax_amount": 500,
+  "order_amount": 2500,
+  "order_tax_amount": 250,
   "order_lines": [
     {
-      "type": "physical",
-      "reference": "19-402-USA",
-      "name": "Red T-Shirt",
+      "name": "Gaming Laptop",
       "quantity": 1,
-      "unit_price": 5000,
+      "unit_price": 2500,
       "tax_rate": 1000,
-      "total_amount": 5000,
-      "total_discount_amount": 0,
-      "total_tax_amount": 500
+      "total_amount": 2500,
+      "total_tax_amount": 250
     }
   ]
 }
 ```
 
 ```javascript
-// Create an order from session
+// Capture an order
 {
-  "purchase_country": "US",
-  "purchase_currency": "USD",
-  "locale": "en-US",
-  "order_amount": 5000,
-  "order_tax_amount": 500,
-  "merchant_urls": {
-    "confirmation": "https://example.com/confirmation",
-    "notification": "https://example.com/notification"
-  }
-}
-```
-
-```javascript
-// Capture payment
-{
-  "captured_amount": 5000,
-  "description": "Full capture for order #12345",
+  "order_id": "order_12345",
+  "captured_amount": 2500,
+  "description": "Full order capture",
   "order_lines": [
     {
-      "type": "physical",
-      "reference": "19-402-USA",
-      "name": "Red T-Shirt",
-      "quantity": 1,
-      "unit_price": 5000,
-      "total_amount": 5000
-    }
-  ]
-}
-```
-
-```javascript
-// Process refund
-{
-  "refunded_amount": 2500,
-  "description": "Partial refund - item returned",
-  "order_lines": [
-    {
-      "type": "physical",
-      "reference": "19-402-USA",
-      "name": "Red T-Shirt",
+      "name": "Gaming Laptop",
       "quantity": 1,
       "unit_price": 2500,
       "total_amount": 2500
@@ -198,16 +151,42 @@ n8n start
 }
 ```
 
+```javascript
+// Process a refund
+{
+  "order_id": "order_12345",
+  "refunded_amount": 500,
+  "description": "Partial refund - shipping cost",
+  "order_lines": [
+    {
+      "name": "Shipping refund",
+      "quantity": 1,
+      "unit_price": 500,
+      "total_amount": 500
+    }
+  ]
+}
+```
+
+```javascript
+// Get settlement report
+{
+  "settlement_date": "2024-01-15",
+  "currency": "USD",
+  "payment_method": "card"
+}
+```
+
 ## Error Handling
 
 | Error | Description | Solution |
 |-------|-------------|----------|
-| 401 Unauthorized | Invalid API credentials | Verify username/password and environment settings |
-| 400 Bad Request | Invalid request parameters | Check required fields and data format |
-| 404 Not Found | Resource not found | Verify order ID, session ID, or other identifiers |
-| 403 Forbidden | Insufficient permissions | Check API user permissions and merchant configuration |
-| 409 Conflict | Resource state conflict | Verify order status before attempting operations |
-| 422 Unprocessable Entity | Validation errors | Review field requirements and data constraints |
+| 401 Unauthorized | Invalid API credentials | Verify API key and environment settings |
+| 404 Not Found | Resource does not exist | Check order ID, session ID, or resource identifier |
+| 400 Bad Request | Invalid request parameters | Validate required fields and data formats |
+| 409 Conflict | Resource state conflict | Check order status before performing operations |
+| 422 Unprocessable Entity | Business logic validation failed | Review order amounts, currency, and line items |
+| 429 Too Many Requests | Rate limit exceeded | Implement request throttling and retry logic |
 
 ## Development
 
@@ -252,5 +231,5 @@ Contributions are welcome! Please ensure:
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/Velocity-BPA/n8n-nodes-klarna/issues)
-- **Klarna API Documentation**: [Klarna Developer Portal](https://developers.klarna.com/)
-- **Klarna Community**: [Klarna Developer Community](https://developers.klarna.com/community/)
+- **Klarna API Documentation**: [developers.klarna.com](https://developers.klarna.com)
+- **Klarna Developer Community**: [Klarna Developer Portal](https://developers.klarna.com/community)
