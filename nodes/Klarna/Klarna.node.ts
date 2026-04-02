@@ -145,6 +145,12 @@ export class Klarna implements INodeType {
       description: 'Release remaining authorization',
       action: 'Release authorization',
     },
+    {
+      name: 'Update Merchant References',
+      value: 'updateMerchantReferences',
+      description: 'Update merchant references',
+      action: 'Update merchant references',
+    },
   ],
   default: 'createOrder',
 },
@@ -458,11 +464,37 @@ export class Klarna implements INodeType {
   displayOptions: {
     show: {
       resource: ['orders'],
-      operation: ['getOrder', 'updateOrderAuthorization', 'cancelOrder', 'releaseAuthorization'],
+      operation: ['getOrder', 'updateOrderAuthorization', 'cancelOrder', 'releaseAuthorization', 'updateMerchantReferences'],
     },
   },
   default: '',
   description: 'The unique identifier of the order',
+},
+{
+  displayName: 'Merchant Reference 1',
+  name: 'merchantReference1',
+  type: 'string',
+  displayOptions: {
+    show: {
+      resource: ['orders'],
+      operation: ['updateMerchantReferences'],
+    },
+  },
+  default: '',
+  description: 'Used for storing merchant\'s internal order number or other reference',
+},
+{
+  displayName: 'Merchant Reference 2',
+  name: 'merchantReference2',
+  type: 'string',
+  displayOptions: {
+    show: {
+      resource: ['orders'],
+      operation: ['updateMerchantReferences'],
+    },
+  },
+  default: '',
+  description: 'Used for storing merchant\'s internal order number or other reference',
 },
 {
   displayName: 'Order ID',
@@ -946,6 +978,34 @@ async function executeOrdersOperations(
               'Content-Type': 'application/json',
               Authorization: `Basic ${Buffer.from(`${credentials.username}:${credentials.password}`).toString('base64')}`,
             },
+            json: true,
+          };
+
+          result = await this.helpers.httpRequest(options) as any;
+          break;
+        }
+
+        case 'updateMerchantReferences': {
+          const orderId = this.getNodeParameter('orderId', i) as string;
+          const merchantReference1 = this.getNodeParameter('merchantReference1', i) as string;
+          const merchantReference2 = this.getNodeParameter('merchantReference2', i) as string;
+
+          const body: any = {};
+          if (merchantReference1) {
+            body.merchant_reference1 = merchantReference1;
+          }
+          if (merchantReference2) {
+            body.merchant_reference2 = merchantReference2;
+          }
+
+          const options: any = {
+            method: 'PATCH',
+            url: `${credentials.baseUrl}/ordermanagement/v1/orders/${orderId}/merchant-references`,
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Basic ${Buffer.from(`${credentials.username}:${credentials.password}`).toString('base64')}`,
+            },
+            body,
             json: true,
           };
 
