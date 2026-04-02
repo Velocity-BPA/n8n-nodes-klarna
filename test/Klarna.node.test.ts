@@ -67,7 +67,132 @@ describe('Klarna Node', () => {
   });
 
   // Resource-specific tests
-describe('PaymentSessions Resource', () => {
+describe('PaymentSession Resource', () => {
+	let mockExecuteFunctions: any;
+
+	beforeEach(() => {
+		mockExecuteFunctions = {
+			getNodeParameter: jest.fn(),
+			getCredentials: jest.fn().mockResolvedValue({
+				username: 'test-username',
+				password: 'test-password',
+				baseUrl: 'https://api.klarna.com',
+			}),
+			getInputData: jest.fn().mockReturnValue([{ json: {} }]),
+			getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
+			continueOnFail: jest.fn().mockReturnValue(false),
+			helpers: {
+				httpRequest: jest.fn(),
+			},
+		};
+	});
+
+	describe('createSession operation', () => {
+		it('should create a payment session successfully', async () => {
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('createSession')
+				.mockReturnValueOnce('US')
+				.mockReturnValueOnce('USD')
+				.mockReturnValueOnce('en-US')
+				.mockReturnValueOnce(1000)
+				.mockReturnValueOnce(100)
+				.mockReturnValueOnce([{ name: 'Test Item', quantity: 1 }])
+				.mockReturnValueOnce('');
+
+			const mockResponse = { session_id: 'test-session-id', client_token: 'test-token' };
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+
+			const items = [{ json: {} }];
+			const result = await executePaymentSessionOperations.call(mockExecuteFunctions, items);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].json).toEqual(mockResponse);
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: 'POST',
+					url: 'https://api.klarna.com/payments/v1/sessions',
+				})
+			);
+		});
+
+		it('should handle errors when creating a payment session', async () => {
+			mockExecuteFunctions.getNodeParameter.mockReturnValue('createSession');
+			mockExecuteFunctions.continueOnFail.mockReturnValue(true);
+			mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(new Error('API Error'));
+
+			const items = [{ json: {} }];
+			const result = await executePaymentSessionOperations.call(mockExecuteFunctions, items);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].json).toEqual({ error: 'API Error' });
+		});
+	});
+
+	describe('updateSession operation', () => {
+		it('should update a payment session successfully', async () => {
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('updateSession')
+				.mockReturnValueOnce('test-session-id')
+				.mockReturnValueOnce('US')
+				.mockReturnValueOnce('USD')
+				.mockReturnValueOnce(1500)
+				.mockReturnValueOnce([{ name: 'Updated Item', quantity: 1 }])
+				.mockReturnValueOnce('');
+
+			const mockResponse = { session_id: 'test-session-id', status: 'updated' };
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+
+			const items = [{ json: {} }];
+			const result = await executePaymentSessionOperations.call(mockExecuteFunctions, items);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].json).toEqual(mockResponse);
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: 'POST',
+					url: 'https://api.klarna.com/payments/v1/sessions/test-session-id',
+				})
+			);
+		});
+	});
+
+	describe('getSession operation', () => {
+		it('should retrieve a payment session successfully', async () => {
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('getSession')
+				.mockReturnValueOnce('test-session-id');
+
+			const mockResponse = { session_id: 'test-session-id', status: 'complete' };
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+
+			const items = [{ json: {} }];
+			const result = await executePaymentSessionOperations.call(mockExecuteFunctions, items);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].json).toEqual(mockResponse);
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: 'GET',
+					url: 'https://api.klarna.com/payments/v1/sessions/test-session-id',
+				})
+			);
+		});
+
+		it('should handle errors when retrieving a payment session', async () => {
+			mockExecuteFunctions.getNodeParameter.mockReturnValue('getSession');
+			mockExecuteFunctions.continueOnFail.mockReturnValue(true);
+			mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(new Error('Session not found'));
+
+			const items = [{ json: {} }];
+			const result = await executePaymentSessionOperations.call(mockExecuteFunctions, items);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].json).toEqual({ error: 'Session not found' });
+		});
+	});
+});
+
+describe('Order Resource', () => {
   let mockExecuteFunctions: any;
 
   beforeEach(() => {
@@ -76,7 +201,7 @@ describe('PaymentSessions Resource', () => {
       getCredentials: jest.fn().mockResolvedValue({
         username: 'test-username',
         password: 'test-password',
-        baseUrl: 'https://api.klarna.com',
+        baseUrl: 'https://api.klarna.com'
       }),
       getInputData: jest.fn().mockReturnValue([{ json: {} }]),
       getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
@@ -88,950 +213,493 @@ describe('PaymentSessions Resource', () => {
     };
   });
 
-  describe('createSession', () => {
-    it('should create a payment session successfully', async () => {
-      const mockResponse = {
-        session_id: 'test-session-id',
-        client_token: 'test-client-token',
-      };
+  describe('createOrder', () => {
+    it('should create order successfully', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('createOrder')
+        .mockReturnValueOnce('auth-token-123')
+        .mockReturnValueOnce('US')
+        .mockReturnValueOnce('USD')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce([{ name: 'Test Item', quantity: 1, unit_price: 1000 }])
+        .mockReturnValueOnce('idempotency-123');
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'createSession';
-          case 'purchaseCountry': return 'US';
-          case 'purchaseCurrency': return 'USD';
-          case 'locale': return 'en-US';
-          case 'orderAmount': return 1000;
-          case 'orderLines': return '[{"name":"Test Product","quantity":1,"unit_price":1000}]';
-          case 'useIdempotencyKey': return false;
-          default: return '';
-        }
-      });
-
+      const mockResponse = { order_id: 'order-123', status: 'AUTHORIZED' };
       mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      const items = [{ json: {} }];
-      const result = await executePaymentSessionsOperations.call(mockExecuteFunctions, items);
+      const result = await executeOrderOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'POST',
-        url: 'https://api.klarna.com/payments/v1/sessions',
-        headers: expect.objectContaining({
-          'Authorization': expect.stringMatching(/^Basic /),
-          'Content-Type': 'application/json',
-        }),
-        json: true,
-        body: {
-          purchase_country: 'US',
-          purchase_currency: 'USD',
-          locale: 'en-US',
-          order_amount: 1000,
-          order_lines: [{"name":"Test Product","quantity":1,"unit_price":1000}],
-        },
-      });
+      expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          url: 'https://api.klarna.com/payments/v1/authorizations/auth-token-123/order',
+        })
+      );
     });
 
-    it('should handle errors when creating session', async () => {
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'createSession';
-          case 'purchaseCountry': return 'US';
-          case 'purchaseCurrency': return 'USD';
-          case 'locale': return 'en-US';
-          case 'orderAmount': return 1000;
-          case 'orderLines': return '[]';
-          case 'useIdempotencyKey': return false;
-          default: return '';
-        }
-      });
+    it('should handle createOrder error', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('createOrder')
+        .mockReturnValueOnce('auth-token-123')
+        .mockReturnValueOnce('US')
+        .mockReturnValueOnce('USD')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce([{ name: 'Test Item' }])
+        .mockReturnValueOnce('');
 
       mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(new Error('API Error'));
       mockExecuteFunctions.continueOnFail.mockReturnValue(true);
 
-      const items = [{ json: {} }];
-      const result = await executePaymentSessionsOperations.call(mockExecuteFunctions, items);
+      const result = await executeOrderOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].json.error).toBe('API Error');
+      expect(result).toEqual([{ json: { error: 'API Error' }, pairedItem: { item: 0 } }]);
     });
   });
 
-  describe('getSession', () => {
-    it('should retrieve a payment session successfully', async () => {
-      const mockResponse = {
-        session_id: 'test-session-id',
-        status: 'complete',
-        order_amount: 1000,
-      };
+  describe('getOrder', () => {
+    it('should get order successfully', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('getOrder')
+        .mockReturnValueOnce('order-123');
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getSession';
-          case 'sessionId': return 'test-session-id';
-          default: return '';
-        }
-      });
-
+      const mockResponse = { order_id: 'order-123', status: 'AUTHORIZED' };
       mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      const items = [{ json: {} }];
-      const result = await executePaymentSessionsOperations.call(mockExecuteFunctions, items);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'GET',
-        url: 'https://api.klarna.com/payments/v1/sessions/test-session-id',
-        headers: expect.objectContaining({
-          'Authorization': expect.stringMatching(/^Basic /),
-          'Content-Type': 'application/json',
-        }),
-        json: true,
-      });
-    });
-  });
-
-  describe('updateSession', () => {
-    it('should update a payment session successfully', async () => {
-      const mockResponse = {
-        session_id: 'test-session-id',
-        order_amount: 2000,
-      };
-
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'updateSession';
-          case 'sessionId': return 'test-session-id';
-          case 'orderAmount': return 2000;
-          case 'orderLines': return '[{"name":"Updated Product","quantity":1,"unit_price":2000}]';
-          case 'useIdempotencyKey': return true;
-          case 'idempotencyKey': return 'test-idempotency-key';
-          default: return '';
-        }
-      });
-
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
-
-      const items = [{ json: {} }];
-      const result = await executePaymentSessionsOperations.call(mockExecuteFunctions, items);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'POST',
-        url: 'https://api.klarna.com/payments/v1/sessions/test-session-id',
-        headers: expect.objectContaining({
-          'Authorization': expect.stringMatching(/^Basic /),
-          'Content-Type': 'application/json',
-          'Klarna-Idempotency-Key': 'test-idempotency-key',
-        }),
-        json: true,
-        body: {
-          order_amount: 2000,
-          order_lines: [{"name":"Updated Product","quantity":1,"unit_price":2000}],
-        },
-      });
-    });
-  });
-});
-
-describe('Orders Resource', () => {
-  let mockExecuteFunctions: any;
-
-  beforeEach(() => {
-    mockExecuteFunctions = {
-      getNodeParameter: jest.fn(),
-      getCredentials: jest.fn().mockResolvedValue({
-        username: 'test-username',
-        password: 'test-password',
-        baseUrl: 'https://api.klarna.com',
-      }),
-      getInputData: jest.fn().mockReturnValue([{ json: {} }]),
-      getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
-      continueOnFail: jest.fn().mockReturnValue(false),
-      helpers: {
-        httpRequest: jest.fn(),
-        requestWithAuthentication: jest.fn(),
-      },
-    };
-  });
-
-  it('should create order successfully', async () => {
-    mockExecuteFunctions.getNodeParameter.mockImplementation((param: string) => {
-      switch (param) {
-        case 'operation': return 'createOrder';
-        case 'authorizationToken': return 'auth-token-123';
-        case 'purchaseCountry': return 'US';
-        case 'purchaseCurrency': return 'USD';
-        case 'orderAmount': return 10000;
-        case 'orderLines': return '[{"name": "Test Product", "quantity": 1, "unit_price": 10000}]';
-        default: return '';
-      }
-    });
-
-    mockExecuteFunctions.helpers.httpRequest.mockResolvedValue({
-      order_id: 'order-123',
-      status: 'CREATED',
-    });
-
-    const result = await executeOrdersOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].json).toEqual({
-      order_id: 'order-123',
-      status: 'CREATED',
-    });
-  });
-
-  it('should get order successfully', async () => {
-    mockExecuteFunctions.getNodeParameter.mockImplementation((param: string) => {
-      switch (param) {
-        case 'operation': return 'getOrder';
-        case 'orderId': return 'order-123';
-        default: return '';
-      }
-    });
-
-    mockExecuteFunctions.helpers.httpRequest.mockResolvedValue({
-      order_id: 'order-123',
-      status: 'AUTHORIZED',
-      order_amount: 10000,
-    });
-
-    const result = await executeOrdersOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].json).toEqual({
-      order_id: 'order-123',
-      status: 'AUTHORIZED',
-      order_amount: 10000,
-    });
-  });
-
-  it('should update order authorization successfully', async () => {
-    mockExecuteFunctions.getNodeParameter.mockImplementation((param: string) => {
-      switch (param) {
-        case 'operation': return 'updateOrderAuthorization';
-        case 'orderId': return 'order-123';
-        case 'orderAmount': return 15000;
-        case 'orderLines': return '[{"name": "Updated Product", "quantity": 1, "unit_price": 15000}]';
-        default: return '';
-      }
-    });
-
-    mockExecuteFunctions.helpers.httpRequest.mockResolvedValue({
-      order_id: 'order-123',
-      status: 'UPDATED',
-    });
-
-    const result = await executeOrdersOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].json).toEqual({
-      order_id: 'order-123',
-      status: 'UPDATED',
-    });
-  });
-
-  it('should cancel order successfully', async () => {
-    mockExecuteFunctions.getNodeParameter.mockImplementation((param: string) => {
-      switch (param) {
-        case 'operation': return 'cancelOrder';
-        case 'orderId': return 'order-123';
-        default: return '';
-      }
-    });
-
-    mockExecuteFunctions.helpers.httpRequest.mockResolvedValue({
-      order_id: 'order-123',
-      status: 'CANCELLED',
-    });
-
-    const result = await executeOrdersOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].json).toEqual({
-      order_id: 'order-123',
-      status: 'CANCELLED',
-    });
-  });
-
-  it('should release authorization successfully', async () => {
-    mockExecuteFunctions.getNodeParameter.mockImplementation((param: string) => {
-      switch (param) {
-        case 'operation': return 'releaseAuthorization';
-        case 'orderId': return 'order-123';
-        default: return '';
-      }
-    });
-
-    mockExecuteFunctions.helpers.httpRequest.mockResolvedValue({
-      order_id: 'order-123',
-      status: 'AUTHORIZATION_RELEASED',
-    });
-
-    const result = await executeOrdersOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].json).toEqual({
-      order_id: 'order-123',
-      status: 'AUTHORIZATION_RELEASED',
-    });
-  });
-
-  it('should handle API errors', async () => {
-    mockExecuteFunctions.getNodeParameter.mockImplementation((param: string) => {
-      switch (param) {
-        case 'operation': return 'getOrder';
-        case 'orderId': return 'invalid-order';
-        default: return '';
-      }
-    });
-
-    mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(new Error('Order not found'));
-
-    await expect(executeOrdersOperations.call(mockExecuteFunctions, [{ json: {} }])).rejects.toThrow();
-  });
-
-  it('should continue on fail when configured', async () => {
-    mockExecuteFunctions.continueOnFail.mockReturnValue(true);
-    mockExecuteFunctions.getNodeParameter.mockImplementation((param: string) => {
-      switch (param) {
-        case 'operation': return 'getOrder';
-        case 'orderId': return 'invalid-order';
-        default: return '';
-      }
-    });
-
-    mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(new Error('Order not found'));
-
-    const result = await executeOrdersOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].json).toEqual({
-      error: 'Order not found',
-    });
-  });
-});
-
-describe('Captures Resource', () => {
-  let mockExecuteFunctions: any;
-
-  beforeEach(() => {
-    mockExecuteFunctions = {
-      getNodeParameter: jest.fn(),
-      getCredentials: jest.fn().mockResolvedValue({
-        username: 'test-username',
-        password: 'test-password',
-        baseUrl: 'https://api.klarna.com',
-      }),
-      getInputData: jest.fn().mockReturnValue([{ json: {} }]),
-      getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
-      continueOnFail: jest.fn().mockReturnValue(false),
-      helpers: {
-        httpRequest: jest.fn(),
-        requestWithAuthentication: jest.fn(),
-      },
-    };
-  });
-
-  describe('createCapture', () => {
-    it('should create capture successfully', async () => {
-      const mockResponse = {
-        capture_id: 'cap_123',
-        captured_amount: 10000,
-        status: 'COMPLETED',
-      };
-
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'createCapture';
-          case 'orderId': return 'order_123';
-          case 'capturedAmount': return 10000;
-          case 'description': return 'Test capture';
-          case 'orderLines': return '[]';
-          default: return '';
-        }
-      });
-
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
-
-      const result = await executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]);
+      const result = await executeOrderOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
       expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'GET',
+          url: 'https://api.klarna.com/ordermanagement/v1/orders/order-123',
+        })
+      );
+    });
+  });
+
+  describe('cancelOrder', () => {
+    it('should cancel order successfully', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('cancelOrder')
+        .mockReturnValueOnce('order-123')
+        .mockReturnValueOnce('cancel-key-123');
+
+      const mockResponse = { order_id: 'order-123', status: 'CANCELLED' };
+      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+
+      const result = await executeOrderOperations.call(mockExecuteFunctions, [{ json: {} }]);
+
+      expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          url: 'https://api.klarna.com/ordermanagement/v1/orders/order-123/cancel',
+        })
+      );
+    });
+  });
+});
+
+describe('Capture Resource', () => {
+  let mockExecuteFunctions: any;
+
+  beforeEach(() => {
+    mockExecuteFunctions = {
+      getNodeParameter: jest.fn(),
+      getCredentials: jest.fn().mockResolvedValue({
+        username: 'test-username',
+        password: 'test-password',
+        baseUrl: 'https://api.klarna.com'
+      }),
+      getInputData: jest.fn().mockReturnValue([{ json: {} }]),
+      getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
+      continueOnFail: jest.fn().mockReturnValue(false),
+      helpers: {
+        httpRequest: jest.fn(),
+        requestWithAuthentication: jest.fn(),
+      },
+    };
+  });
+
+  describe('createCapture operation', () => {
+    it('should create a capture successfully', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('createCapture')
+        .mockReturnValueOnce('order123')
+        .mockReturnValueOnce(5000)
+        .mockReturnValueOnce('Test capture')
+        .mockReturnValueOnce('[]')
+        .mockReturnValueOnce('idempotency-key-123');
+
+      const mockResponse = { capture_id: 'capture123', status: 'captured' };
+      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+
+      const result = await executeCaptureOperations.call(mockExecuteFunctions, [{ json: {} }]);
+
       expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
         method: 'POST',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/captures',
+        url: 'https://api.klarna.com/ordermanagement/v1/orders/order123/captures',
         headers: {
           'Authorization': expect.stringContaining('Basic '),
           'Content-Type': 'application/json',
+          'Idempotency-Key': 'idempotency-key-123',
         },
         body: {
-          captured_amount: 10000,
+          captured_amount: 5000,
           description: 'Test capture',
           order_lines: [],
         },
         json: true,
       });
+
+      expect(result).toEqual([{
+        json: mockResponse,
+        pairedItem: { item: 0 },
+      }]);
     });
 
-    it('should handle invalid JSON in order lines', async () => {
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'createCapture';
-          case 'orderId': return 'order_123';
-          case 'capturedAmount': return 10000;
-          case 'orderLines': return 'invalid json';
-          default: return '';
-        }
-      });
+    it('should handle createCapture errors', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('createCapture')
+        .mockReturnValueOnce('order123')
+        .mockReturnValueOnce(5000)
+        .mockReturnValueOnce('')
+        .mockReturnValueOnce('')
+        .mockReturnValueOnce('');
 
-      await expect(executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]))
-        .rejects.toThrow('Invalid JSON in order_lines');
+      mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(new Error('API Error'));
+      mockExecuteFunctions.continueOnFail.mockReturnValue(true);
+
+      const result = await executeCaptureOperations.call(mockExecuteFunctions, [{ json: {} }]);
+
+      expect(result).toEqual([{
+        json: { error: 'API Error' },
+        pairedItem: { item: 0 },
+      }]);
     });
   });
 
-  describe('getCaptures', () => {
-    it('should get captures successfully', async () => {
-      const mockResponse = {
-        captures: [
-          { capture_id: 'cap_123', captured_amount: 10000 },
-          { capture_id: 'cap_456', captured_amount: 5000 },
-        ],
-      };
+  describe('getAllCaptures operation', () => {
+    it('should get all captures successfully', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('getAllCaptures')
+        .mockReturnValueOnce('order123');
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getCaptures';
-          case 'orderId': return 'order_123';
-          default: return '';
-        }
-      });
-
+      const mockResponse = { captures: [{ capture_id: 'capture123' }] };
       mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      const result = await executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]);
+      const result = await executeCaptureOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
       expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
         method: 'GET',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/captures',
+        url: 'https://api.klarna.com/ordermanagement/v1/orders/order123/captures',
         headers: {
           'Authorization': expect.stringContaining('Basic '),
         },
         json: true,
       });
+
+      expect(result).toEqual([{
+        json: mockResponse,
+        pairedItem: { item: 0 },
+      }]);
     });
   });
 
-  describe('getCapture', () => {
-    it('should get specific capture successfully', async () => {
-      const mockResponse = {
-        capture_id: 'cap_123',
-        captured_amount: 10000,
-        status: 'COMPLETED',
-      };
+  describe('getCapture operation', () => {
+    it('should get a specific capture successfully', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('getCapture')
+        .mockReturnValueOnce('order123')
+        .mockReturnValueOnce('capture456');
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getCapture';
-          case 'orderId': return 'order_123';
-          case 'captureId': return 'cap_123';
-          default: return '';
-        }
-      });
-
+      const mockResponse = { capture_id: 'capture456', status: 'captured' };
       mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      const result = await executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]);
+      const result = await executeCaptureOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
       expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
         method: 'GET',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/captures/cap_123',
+        url: 'https://api.klarna.com/ordermanagement/v1/orders/order123/captures/capture456',
         headers: {
           'Authorization': expect.stringContaining('Basic '),
         },
         json: true,
       });
+
+      expect(result).toEqual([{
+        json: mockResponse,
+        pairedItem: { item: 0 },
+      }]);
     });
   });
 
-  describe('updateCaptureShipping', () => {
-    it('should update capture shipping info successfully', async () => {
-      const mockResponse = {
-        capture_id: 'cap_123',
-        shipping_info: {
-          tracking_number: 'TRK123',
-        },
-      };
+  describe('triggerSendOut operation', () => {
+    it('should trigger send out successfully', async () => {
+      mockExecuteFunctions.getNodeParameter
+        .mockReturnValueOnce('triggerSendOut')
+        .mockReturnValueOnce('order123')
+        .mockReturnValueOnce('capture456');
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'updateCaptureShipping';
-          case 'orderId': return 'order_123';
-          case 'captureId': return 'cap_123';
-          case 'shippingInfo': return '{"tracking_number": "TRK123"}';
-          default: return '';
-        }
-      });
-
+      const mockResponse = { success: true };
       mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      const result = await executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]);
+      const result = await executeCaptureOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
       expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
         method: 'PATCH',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/captures/cap_123/shipping-info',
+        url: 'https://api.klarna.com/ordermanagement/v1/orders/order123/captures/capture456/trigger-send-out',
         headers: {
           'Authorization': expect.stringContaining('Basic '),
           'Content-Type': 'application/json',
         },
-        body: {
-          tracking_number: 'TRK123',
-        },
         json: true,
       });
-    });
 
-    it('should handle invalid JSON in shipping info', async () => {
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'updateCaptureShipping';
-          case 'orderId': return 'order_123';
-          case 'captureId': return 'cap_123';
-          case 'shippingInfo': return 'invalid json';
-          default: return '';
-        }
-      });
-
-      await expect(executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]))
-        .rejects.toThrow('Invalid JSON in shipping_info');
-    });
-  });
-
-  describe('triggerSendOut', () => {
-    it('should trigger send out successfully', async () => {
-      const mockResponse = {
-        capture_id: 'cap_123',
-        status: 'TRIGGERED',
-      };
-
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'triggerSendOut';
-          case 'orderId': return 'order_123';
-          case 'captureId': return 'cap_123';
-          default: return '';
-        }
-      });
-
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
-
-      const result = await executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-      expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'POST',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/captures/cap_123/trigger-send-out',
-        headers: {
-          'Authorization': expect.stringContaining('Basic '),
-          'Content-Type': 'application/json',
-        },
-        body: {},
-        json: true,
-      });
-    });
-  });
-
-  describe('error handling', () => {
-    it('should handle API errors', async () => {
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getCapture';
-          case 'orderId': return 'order_123';
-          case 'captureId': return 'cap_123';
-          default: return '';
-        }
-      });
-
-      const apiError = new Error('API Error');
-      mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(apiError);
-
-      await expect(executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]))
-        .rejects.toThrow('API Error');
-    });
-
-    it('should continue on fail when configured', async () => {
-      mockExecuteFunctions.continueOnFail.mockReturnValue(true);
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getCapture';
-          case 'orderId': return 'order_123';
-          case 'captureId': return 'cap_123';
-          default: return '';
-        }
-      });
-
-      const apiError = new Error('API Error');
-      mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(apiError);
-
-      const result = await executeCapturesOperations.call(mockExecuteFunctions, [{ json: {} }]);
-
-      expect(result).toEqual([{ json: { error: 'API Error' }, pairedItem: { item: 0 } }]);
+      expect(result).toEqual([{
+        json: mockResponse,
+        pairedItem: { item: 0 },
+      }]);
     });
   });
 });
 
-describe('Refunds Resource', () => {
-  let mockExecuteFunctions: any;
+describe('Refund Resource', () => {
+	let mockExecuteFunctions: any;
 
-  beforeEach(() => {
-    mockExecuteFunctions = {
-      getNodeParameter: jest.fn(),
-      getCredentials: jest.fn().mockResolvedValue({
-        username: 'test-username',
-        password: 'test-password',
-        baseUrl: 'https://api.klarna.com',
-      }),
-      getInputData: jest.fn().mockReturnValue([{ json: {} }]),
-      getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
-      continueOnFail: jest.fn().mockReturnValue(false),
-      helpers: {
-        httpRequest: jest.fn(),
-        requestWithAuthentication: jest.fn(),
-      },
-    };
-  });
+	beforeEach(() => {
+		mockExecuteFunctions = {
+			getNodeParameter: jest.fn(),
+			getCredentials: jest.fn().mockResolvedValue({
+				username: 'test-user',
+				password: 'test-pass',
+				baseUrl: 'https://api.klarna.com',
+			}),
+			getInputData: jest.fn().mockReturnValue([{ json: {} }]),
+			getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
+			continueOnFail: jest.fn().mockReturnValue(false),
+			helpers: {
+				httpRequest: jest.fn(),
+				requestWithAuthentication: jest.fn(),
+			},
+		};
+	});
 
-  describe('createRefund', () => {
-    it('should create refund successfully', async () => {
-      const mockResponse = {
-        refund_id: 'refund_123',
-        refunded_amount: 5000,
-        description: 'Test refund',
-      };
+	describe('createRefund', () => {
+		it('should create a refund successfully', async () => {
+			const mockResponse = { refund_id: 'ref_123', refunded_amount: 1000 };
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('createRefund')
+				.mockReturnValueOnce('order_123')
+				.mockReturnValueOnce(1000)
+				.mockReturnValueOnce('Test refund')
+				.mockReturnValueOnce('[]')
+				.mockReturnValueOnce('');
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'createRefund';
-          case 'orderId': return 'order_123';
-          case 'refundedAmount': return 5000;
-          case 'description': return 'Test refund';
-          case 'orderLines': return '[]';
-          default: return undefined;
-        }
-      });
+			const result = await executeRefundOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+				method: 'POST',
+				url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/refunds',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': expect.stringContaining('Basic '),
+				},
+				body: {
+					refunded_amount: 1000,
+					description: 'Test refund',
+					order_lines: [],
+				},
+				json: true,
+			});
+			expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+		});
 
-      const items = [{ json: {} }];
-      const result = await executeRefundsOperations.call(mockExecuteFunctions, items);
+		it('should handle errors when creating refund', async () => {
+			const mockError = new Error('API Error');
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('createRefund')
+				.mockReturnValueOnce('order_123')
+				.mockReturnValueOnce(1000)
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('[]')
+				.mockReturnValueOnce('');
+			mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(mockError);
+			mockExecuteFunctions.continueOnFail.mockReturnValue(true);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'POST',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/refunds',
-        headers: {
-          'Authorization': expect.stringContaining('Basic'),
-          'Content-Type': 'application/json',
-        },
-        body: {
-          refunded_amount: 5000,
-          description: 'Test refund',
-        },
-        json: true,
-      });
-    });
+			const result = await executeRefundOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-    it('should handle error when creating refund', async () => {
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'createRefund';
-          case 'orderId': return 'order_123';
-          case 'refundedAmount': return 5000;
-          case 'description': return 'Test refund';
-          case 'orderLines': return '[]';
-          default: return undefined;
-        }
-      });
+			expect(result).toEqual([{ json: { error: 'API Error' }, pairedItem: { item: 0 } }]);
+		});
+	});
 
-      const error = new Error('API Error');
-      mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(error);
+	describe('getAllRefunds', () => {
+		it('should get all refunds successfully', async () => {
+			const mockResponse = { refunds: [{ refund_id: 'ref_123' }] };
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('getAllRefunds')
+				.mockReturnValueOnce('order_123');
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      const items = [{ json: {} }];
+			const result = await executeRefundOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      await expect(executeRefundsOperations.call(mockExecuteFunctions, items))
-        .rejects.toThrow('API Error');
-    });
-  });
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+				method: 'GET',
+				url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/refunds',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': expect.stringContaining('Basic '),
+				},
+				json: true,
+			});
+			expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+		});
+	});
 
-  describe('getRefunds', () => {
-    it('should get refunds successfully', async () => {
-      const mockResponse = {
-        refunds: [
-          { refund_id: 'refund_123', refunded_amount: 5000 },
-          { refund_id: 'refund_456', refunded_amount: 3000 },
-        ],
-      };
+	describe('getRefund', () => {
+		it('should get specific refund successfully', async () => {
+			const mockResponse = { refund_id: 'ref_123', refunded_amount: 1000 };
+			mockExecuteFunctions.getNodeParameter
+				.mockReturnValueOnce('getRefund')
+				.mockReturnValueOnce('order_123')
+				.mockReturnValueOnce('ref_123');
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getRefunds';
-          case 'orderId': return 'order_123';
-          default: return undefined;
-        }
-      });
+			const result = await executeRefundOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
-
-      const items = [{ json: {} }];
-      const result = await executeRefundsOperations.call(mockExecuteFunctions, items);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'GET',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/refunds',
-        headers: {
-          'Authorization': expect.stringContaining('Basic'),
-        },
-        json: true,
-      });
-    });
-  });
-
-  describe('getRefund', () => {
-    it('should get specific refund successfully', async () => {
-      const mockResponse = {
-        refund_id: 'refund_123',
-        refunded_amount: 5000,
-        description: 'Test refund',
-        refunded_at: '2023-01-01T00:00:00Z',
-      };
-
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getRefund';
-          case 'orderId': return 'order_123';
-          case 'refundId': return 'refund_123';
-          default: return undefined;
-        }
-      });
-
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
-
-      const items = [{ json: {} }];
-      const result = await executeRefundsOperations.call(mockExecuteFunctions, items);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'GET',
-        url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/refunds/refund_123',
-        headers: {
-          'Authorization': expect.stringContaining('Basic'),
-        },
-        json: true,
-      });
-    });
-  });
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+				method: 'GET',
+				url: 'https://api.klarna.com/ordermanagement/v1/orders/order_123/refunds/ref_123',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': expect.stringContaining('Basic '),
+				},
+				json: true,
+			});
+			expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+		});
+	});
 });
 
-describe('Settlements Resource', () => {
-  let mockExecuteFunctions: any;
+describe('Settlement Resource', () => {
+	let mockExecuteFunctions: any;
 
-  beforeEach(() => {
-    mockExecuteFunctions = {
-      getNodeParameter: jest.fn(),
-      getCredentials: jest.fn().mockResolvedValue({
-        username: 'test-username',
-        password: 'test-password',
-        baseUrl: 'https://api.klarna.com',
-      }),
-      getInputData: jest.fn().mockReturnValue([{ json: {} }]),
-      getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
-      continueOnFail: jest.fn().mockReturnValue(false),
-      helpers: {
-        httpRequest: jest.fn(),
-        requestWithAuthentication: jest.fn(),
-      },
-    };
-  });
+	beforeEach(() => {
+		mockExecuteFunctions = {
+			getNodeParameter: jest.fn(),
+			getCredentials: jest.fn().mockResolvedValue({
+				username: 'test-username',
+				password: 'test-password',
+				baseUrl: 'https://api.klarna.com',
+			}),
+			getInputData: jest.fn().mockReturnValue([{ json: {} }]),
+			getNode: jest.fn().mockReturnValue({ name: 'Test Node' }),
+			continueOnFail: jest.fn().mockReturnValue(false),
+			helpers: {
+				httpRequest: jest.fn(),
+			},
+		};
+	});
 
-  describe('getSettlementReports', () => {
-    it('should get settlement reports successfully', async () => {
-      const mockResponse = {
-        settlement_reports: [
-          {
-            settlement_id: 'SETTLEMENT123',
-            currency: 'USD',
-            payout_date: '2023-01-15',
-            total_amount: 1500000,
-          },
-        ],
-      };
+	describe('getAllSettlements', () => {
+		it('should get all settlements successfully', async () => {
+			const mockResponse = { settlements: [{ id: 'settlement_1' }] };
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('getAllSettlements');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('ref123');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('order123');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('2023-01-01');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('2023-12-31');
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getSettlementReports';
-          case 'startDate': return '2023-01-01';
-          case 'endDate': return '2023-01-31';
-          case 'currencyCode': return 'USD';
-          default: return undefined;
-        }
-      });
+			const result = await executeSettlementOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+				method: 'GET',
+				url: 'https://api.klarna.com/settlements/v1/reports',
+				auth: { username: 'test-username', password: 'test-password' },
+				qs: {
+					payment_reference: 'ref123',
+					order_id: 'order123',
+					start_date: '2023-01-01',
+					end_date: '2023-12-31',
+				},
+				json: true,
+			});
+			expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+		});
 
-      const result = await executeSettlementsOperations.call(
-        mockExecuteFunctions,
-        [{ json: {} }],
-      );
+		it('should handle errors when getting all settlements', async () => {
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('getAllSettlements');
+			mockExecuteFunctions.getNodeParameter.mockReturnValue('');
+			mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(new Error('API Error'));
+			mockExecuteFunctions.continueOnFail.mockReturnValue(true);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'GET',
-        url: 'https://api.klarna.com/settlements/v1/reports?start_date=2023-01-01&end_date=2023-01-31&currency_code=USD',
-        headers: {
-          'Authorization': expect.stringContaining('Basic '),
-          'Content-Type': 'application/json',
-        },
-        json: true,
-      });
-    });
+			const result = await executeSettlementOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-    it('should handle errors when getting settlement reports', async () => {
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        if (paramName === 'operation') return 'getSettlementReports';
-        return undefined;
-      });
+			expect(result).toEqual([{ json: { error: 'API Error' }, pairedItem: { item: 0 } }]);
+		});
+	});
 
-      const error = new Error('API Error');
-      mockExecuteFunctions.helpers.httpRequest.mockRejectedValue(error);
+	describe('getSettlement', () => {
+		it('should get a specific settlement successfully', async () => {
+			const mockResponse = { id: 'settlement_123' };
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('getSettlement');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('settlement_123');
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-      await expect(
-        executeSettlementsOperations.call(mockExecuteFunctions, [{ json: {} }]),
-      ).rejects.toThrow('API Error');
-    });
-  });
+			const result = await executeSettlementOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-  describe('getSettlementReport', () => {
-    it('should get specific settlement report successfully', async () => {
-      const mockResponse = {
-        settlement_id: 'SETTLEMENT123',
-        currency: 'USD',
-        payout_date: '2023-01-15',
-        transactions: [],
-      };
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+				method: 'GET',
+				url: 'https://api.klarna.com/settlements/v1/reports/settlement_123',
+				auth: { username: 'test-username', password: 'test-password' },
+				json: true,
+			});
+			expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+		});
+	});
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getSettlementReport';
-          case 'settlementId': return 'SETTLEMENT123';
-          default: return undefined;
-        }
-      });
+	describe('getSettlementPdf', () => {
+		it('should get settlement PDF successfully', async () => {
+			const mockPdfBuffer = Buffer.from('PDF content');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('getSettlementPdf');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('settlement_123');
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockPdfBuffer);
 
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
+			const result = await executeSettlementOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      const result = await executeSettlementsOperations.call(
-        mockExecuteFunctions,
-        [{ json: {} }],
-      );
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+				method: 'GET',
+				url: 'https://api.klarna.com/settlements/v1/reports/settlement_123.pdf',
+				auth: { username: 'test-username', password: 'test-password' },
+				encoding: null,
+			});
+			expect(result[0].json).toMatchObject({
+				settlementId: 'settlement_123',
+				contentType: 'application/pdf',
+			});
+		});
+	});
 
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'GET',
-        url: 'https://api.klarna.com/settlements/v1/reports/SETTLEMENT123',
-        headers: {
-          'Authorization': expect.stringContaining('Basic '),
-          'Content-Type': 'application/json',
-        },
-        json: true,
-      });
-    });
-  });
+	describe('getSettlementTransactions', () => {
+		it('should get settlement transactions successfully', async () => {
+			const mockResponse = { transactions: [{ id: 'txn_1' }] };
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('getSettlementTransactions');
+			mockExecuteFunctions.getNodeParameter.mockReturnValueOnce('settlement_123');
+			mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
 
-  describe('getTransactions', () => {
-    it('should get settlement transactions successfully', async () => {
-      const mockResponse = {
-        transactions: [
-          {
-            transaction_id: 'TXN123',
-            order_id: 'ORDER456',
-            amount: 100000,
-            currency: 'USD',
-          },
-        ],
-      };
+			const result = await executeSettlementOperations.call(mockExecuteFunctions, [{ json: {} }]);
 
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getTransactions';
-          case 'orderId': return 'ORDER456';
-          default: return undefined;
-        }
-      });
-
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
-
-      const result = await executeSettlementsOperations.call(
-        mockExecuteFunctions,
-        [{ json: {} }],
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-      expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
-        method: 'GET',
-        url: 'https://api.klarna.com/settlements/v1/transactions?order_id=ORDER456',
-        headers: {
-          'Authorization': expect.stringContaining('Basic '),
-          'Content-Type': 'application/json',
-        },
-        json: true,
-      });
-    });
-  });
-
-  describe('getPayouts', () => {
-    it('should get payouts successfully', async () => {
-      const mockResponse = {
-        payouts: [
-          {
-            payout_id: 'PAYOUT123',
-            currency: 'USD',
-            amount: 5000000,
-            payout_date: '2023-01-15',
-          },
-        ],
-      };
-
-      mockExecuteFunctions.getNodeParameter.mockImplementation((paramName: string) => {
-        switch (paramName) {
-          case 'operation': return 'getPayouts';
-          case 'currencyCode': return 'USD';
-          default: return undefined;
-        }
-      });
-
-      mockExecuteFunctions.helpers.httpRequest.mockResolvedValue(mockResponse);
-
-      const result = await executeSettlementsOperations.call(
-        mockExecuteFunctions,
-        [{ json: {} }],
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result[0].json).toEqual(mockResponse);
-    });
-  });
+			expect(mockExecuteFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+				method: 'GET',
+				url: 'https://api.klarna.com/settlements/v1/reports/settlement_123/transactions',
+				auth: { username: 'test-username', password: 'test-password' },
+				json: true,
+			});
+			expect(result).toEqual([{ json: mockResponse, pairedItem: { item: 0 } }]);
+		});
+	});
 });
 });
